@@ -5,23 +5,43 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Xadrez do Casal</title>
 
-<!-- Firebase compat: mais simples para um único arquivo -->
+<!-- Firebase compat: simples para manter o projeto em um unico HTML. -->
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+
+<!-- Motor de regras do xadrez: lances legais, xeque, mate, roque, en passant e empates. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.12.1/chess.min.js"></script>
 
 <style>
 * { box-sizing: border-box; }
 
+:root {
+  --bg: #f4f7fb;
+  --panel: #ffffff;
+  --text: #101827;
+  --muted: #607089;
+  --line: #d9e2ef;
+  --blue: #2563eb;
+  --blue-dark: #1d4ed8;
+  --green: #15803d;
+  --gray: #475569;
+  --red: #dc2626;
+  --gold: #f6c343;
+  --light: #eef4fb;
+  --dark: #7a8da8;
+}
+
 body {
   margin: 0;
-  background: #f8fafc;
-  color: #111827;
+  background: var(--bg);
+  color: var(--text);
   font-family: Arial, Helvetica, sans-serif;
   padding: 10px;
 }
 
 .app {
-  max-width: 760px;
+  max-width: 780px;
   margin: auto;
 }
 
@@ -30,32 +50,46 @@ h1 {
   font-size: 30px;
 }
 
+h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
 .sub {
-  color: #64748b;
+  color: var(--muted);
   margin-bottom: 10px;
+  line-height: 1.4;
 }
 
 .card {
-  background: white;
-  border: 1px solid #dbe3ef;
-  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
   padding: 14px;
   margin: 12px 0;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.07);
 }
 
 #status {
   font-size: 18px;
   font-weight: bold;
+  line-height: 1.3;
+}
+
+#mensagem {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 8px;
+  min-height: 18px;
 }
 
 .pill {
   display: inline-block;
   padding: 6px 10px;
   border-radius: 999px;
-  background: #eff6ff;
-  color: #1d4ed8;
-  margin: 4px 4px 0 0;
+  background: #eaf2ff;
+  color: var(--blue-dark);
+  margin: 6px 4px 0 0;
   font-size: 14px;
 }
 
@@ -65,10 +99,11 @@ h1 {
   gap: 8px;
 }
 
-button, input {
+button,
+input {
   width: 100%;
   padding: 13px;
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px solid #cbd5e1;
   font-size: 16px;
   margin-top: 8px;
@@ -76,14 +111,27 @@ button, input {
 
 button {
   border: none;
-  background: #2563eb;
+  background: var(--blue);
   color: white;
   font-weight: bold;
+  cursor: pointer;
 }
 
-button.green { background: #16a34a; }
-button.gray { background: #475569; }
-button.red { background: #dc2626; }
+button:hover { filter: brightness(0.96); }
+button:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+button.green { background: var(--green); }
+button.gray { background: var(--gray); }
+button.red { background: var(--red); }
+
+input {
+  background: #ffffff;
+  color: var(--text);
+  text-transform: uppercase;
+}
 
 #board {
   width: min(94vw, 620px);
@@ -92,9 +140,9 @@ button.red { background: #dc2626; }
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   border: 4px solid #1f2937;
-  border-radius: 14px;
+  border-radius: 8px;
   overflow: hidden;
-  background: #f8fafc;
+  background: var(--light);
 }
 
 .square {
@@ -105,13 +153,14 @@ button.red { background: #dc2626; }
   cursor: pointer;
   user-select: none;
   position: relative;
+  line-height: 1;
 }
 
-.light { background: #f8fafc; }
-.dark { background: #94a3b8; }
+.light { background: var(--light); }
+.dark { background: var(--dark); }
 
 .selected {
-  outline: 4px solid #facc15;
+  outline: 4px solid var(--gold);
   outline-offset: -4px;
 }
 
@@ -120,23 +169,35 @@ button.red { background: #dc2626; }
   width: 24%;
   height: 24%;
   border-radius: 50%;
-  background: rgba(22,163,74,.55);
+  background: rgba(21, 128, 61, 0.58);
   position: absolute;
 }
 
+.capture::after {
+  width: 76%;
+  height: 76%;
+  background: transparent;
+  border: 5px solid rgba(21, 128, 61, 0.55);
+}
+
 .last {
-  box-shadow: inset 0 0 0 4px rgba(37,99,235,.45);
+  box-shadow: inset 0 0 0 4px rgba(37, 99, 235, 0.45);
+}
+
+.check {
+  background: #fecaca;
 }
 
 .moves {
   background: #f8fafc;
   padding: 10px;
-  border-radius: 12px;
+  border-radius: 8px;
   min-height: 60px;
-  max-height: 150px;
+  max-height: 160px;
   overflow: auto;
   white-space: pre-wrap;
-  font-family: monospace;
+  font-family: Consolas, "Courier New", monospace;
+  line-height: 1.45;
 }
 
 .warn {
@@ -144,18 +205,38 @@ button.red { background: #dc2626; }
   border-color: #fed7aa;
   color: #9a3412;
 }
+
+.ok {
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+@media (max-width: 520px) {
+  body { padding: 8px; }
+  h1 { font-size: 26px; }
+  .row { grid-template-columns: 1fr; }
+  .card { padding: 12px; }
+}
 </style>
 </head>
 
 <body>
 <div class="app">
-  <h1>♟️ Xadrez do Casal</h1>
-  <div class="sub">Crie uma sala, envie o link para sua esposa e joguem em celulares diferentes.</div>
+  <h1>Xadrez do Casal</h1>
+  <div class="sub">Crie uma sala, envie o link e joguem em celulares diferentes.</div>
 
   <div class="card">
     <div id="status">Carregando...</div>
+    <div id="mensagem"></div>
     <span id="turno" class="pill">Turno: brancas</span>
-    <span id="voce" class="pill">Você: local</span>
+    <span id="voce" class="pill">Voce: local</span>
     <span id="salaAtual" class="pill">Sala: nenhuma</span>
   </div>
 
@@ -173,28 +254,31 @@ button.red { background: #dc2626; }
   <div id="board"></div>
 
   <div class="card">
-    <h2>💕 Jogar com minha esposa</h2>
-
+    <h2>Jogar online</h2>
     <div class="row">
       <button onclick="criarSala()">Criar sala</button>
       <button class="green" onclick="entrarNaSala()">Entrar na sala</button>
     </div>
 
-    <input id="codigoSala" placeholder="Código da sala">
-    <button class="gray" onclick="copiarLink()">Copiar link para enviar no WhatsApp</button>
+    <input id="codigoSala" placeholder="Codigo da sala" maxlength="8" autocomplete="off">
+    <button class="gray" onclick="copiarLink()">Copiar link</button>
 
-    <p>
-      Quem cria a sala joga de <b>brancas</b>. Quem entra pelo link joga de <b>pretas</b>.
+    <p class="hint">
+      Quem cria joga de brancas. Quem entra pelo link joga de pretas.
     </p>
   </div>
 
   <div id="firebaseAviso" class="card warn" style="display:none">
-    <b>Firebase ainda não configurado.</b><br>
-    Edite o arquivo <code>index.html</code> e cole sua configuração Firebase na parte indicada.
+    <b>Firebase ainda nao configurado.</b><br>
+    Cole sua configuracao no bloco <code>firebaseConfig</code> e ative o login anonimo.
+  </div>
+
+  <div id="firebaseOkAviso" class="card ok" style="display:none">
+    Firebase configurado. O modo online esta pronto para criar e entrar em salas.
   </div>
 
   <div class="card">
-    <h2>📜 Lances</h2>
+    <h2>Lances</h2>
     <div id="moves" class="moves">Nenhum lance.</div>
   </div>
 </div>
@@ -202,13 +286,17 @@ button.red { background: #dc2626; }
 <script>
 /*
 ====================================================
-COLE SUA CONFIGURAÇÃO DO FIREBASE AQUI
+COLE SUA CONFIGURACAO DO FIREBASE AQUI
 ====================================================
 
-No Firebase, crie um app web e copie firebaseConfig.
-Substitua o bloco abaixo.
+No Firebase:
+1. Crie um app Web.
+2. Copie o firebaseConfig.
+3. Ative Authentication > Sign-in method > Anonymous.
+4. Crie um Realtime Database.
+5. Publique as regras do arquivo database.rules.json.
 
-Exemplo:
+Substitua o bloco abaixo:
 
 const firebaseConfig = {
   apiKey: "SUA_CHAVE",
@@ -219,7 +307,6 @@ const firebaseConfig = {
   messagingSenderId: "000000",
   appId: "1:000000:web:000000"
 };
-
 */
 const firebaseConfig = {
   apiKey: "COLE_AQUI",
@@ -233,12 +320,19 @@ const firebaseConfig = {
 
 let db = null;
 let firebaseOk = false;
+let authReady = Promise.resolve(null);
+let uid = null;
 
 try {
   if (firebaseConfig.apiKey !== "COLE_AQUI") {
     firebase.initializeApp(firebaseConfig);
     db = firebase.database();
     firebaseOk = true;
+    document.getElementById("firebaseOkAviso").style.display = "block";
+    authReady = firebase.auth().signInAnonymously().then((cred) => {
+      uid = cred.user.uid;
+      return uid;
+    });
   } else {
     document.getElementById("firebaseAviso").style.display = "block";
   }
@@ -247,52 +341,106 @@ try {
 }
 
 const simbolos = {
-  r:"♜", n:"♞", b:"♝", q:"♛", k:"♚", p:"♟",
-  R:"♖", N:"♘", B:"♗", Q:"♕", K:"♔", P:"♙"
+  r: "\u265c", n: "\u265e", b: "\u265d", q: "\u265b", k: "\u265a", p: "\u265f",
+  R: "\u2656", N: "\u2658", B: "\u2657", Q: "\u2655", K: "\u2654", P: "\u2659"
 };
 
-let board = [];
-let turno = "w";
+const nomesCores = { w: "brancas", b: "pretas" };
+const codigoInput = () => document.getElementById("codigoSala");
+
+let jogo = typeof Chess === "function" ? new Chess() : null;
 let selecionada = null;
-let historico = [];
 let ultimo = null;
 let invertido = false;
-
 let salaId = null;
 let minhaCor = null;
-let escutando = false;
+let escutaRef = null;
 let atualizandoRemoto = false;
+let jogadores = { whiteUid: null, blackUid: null };
 
-function inicial() {
-  return [
-    ["r","n","b","q","k","b","n","r"],
-    ["p","p","p","p","p","p","p","p"],
-    ["","","","","","","",""],
-    ["","","","","","","",""],
-    ["","","","","","","",""],
-    ["","","","","","","",""],
-    ["P","P","P","P","P","P","P","P"],
-    ["R","N","B","Q","K","B","N","R"]
-  ];
+function avisar(texto) {
+  document.getElementById("mensagem").textContent = texto || "";
+}
+
+function motorPronto() {
+  if (jogo) return true;
+  document.getElementById("status").textContent = "Motor de xadrez nao carregou.";
+  avisar("Confira sua conexao e recarregue a pagina.");
+  return false;
+}
+
+async function garantirLogin() {
+  if (!firebaseOk) {
+    document.getElementById("firebaseAviso").style.display = "block";
+    throw new Error("Firebase nao configurado.");
+  }
+
+  try {
+    uid = uid || await authReady;
+    if (!uid && firebase.auth().currentUser) uid = firebase.auth().currentUser.uid;
+    if (!uid) {
+      const cred = await firebase.auth().signInAnonymously();
+      uid = cred.user.uid;
+    }
+    return uid;
+  } catch (e) {
+    document.getElementById("firebaseAviso").style.display = "block";
+    avisar("Ative o login anonimo no Firebase para usar salas online.");
+    throw e;
+  }
+}
+
+function salaRef(id = salaId) {
+  return db.ref("salas/" + id);
 }
 
 function estadoAtual() {
-  return {
-    board,
-    turno,
-    historico,
-    ultimo,
+  const estado = {
+    fen: jogo.fen(),
+    pgn: jogo.pgn(),
+    whiteUid: jogadores.whiteUid || uid,
     updatedAt: Date.now()
   };
+
+  if (jogadores.blackUid) estado.blackUid = jogadores.blackUid;
+  if (ultimo) estado.ultimo = ultimo;
+
+  return estado;
+}
+
+function carregarJogo(fen, pgn) {
+  const novo = new Chess();
+  let carregouPgn = false;
+
+  if (pgn) {
+    try {
+      carregouPgn = novo.load_pgn(pgn);
+    } catch (e) {
+      carregouPgn = false;
+    }
+  }
+
+  if (fen && (!carregouPgn || novo.fen() !== fen)) {
+    novo.load(fen);
+  }
+
+  jogo = novo;
 }
 
 function aplicarEstado(e) {
-  if (!e) return;
+  if (!e || !e.fen || !motorPronto()) return;
+
   atualizandoRemoto = true;
-  board = e.board || inicial();
-  turno = e.turno || "w";
-  historico = e.historico || [];
+  carregarJogo(e.fen, e.pgn || "");
   ultimo = e.ultimo || null;
+  jogadores = {
+    whiteUid: e.whiteUid || null,
+    blackUid: e.blackUid || null
+  };
+
+  if (uid && jogadores.whiteUid === uid) minhaCor = "w";
+  if (uid && jogadores.blackUid === uid) minhaCor = "b";
+
   selecionada = null;
   render();
   status();
@@ -300,202 +448,196 @@ function aplicarEstado(e) {
 }
 
 function enviarEstado() {
-  if (!firebaseOk || !salaId || atualizandoRemoto) return;
-  db.ref("salas/" + salaId).set(estadoAtual());
+  if (!firebaseOk || !salaId || atualizandoRemoto || !motorPronto()) return;
+
+  salaRef().set(estadoAtual()).catch(() => {
+    avisar("Nao consegui enviar o lance. Confira as regras do Firebase.");
+  });
 }
 
-function novoJogo(enviar) {
-  board = inicial();
-  turno = "w";
+function novoJogo(enviar, confirmar = true) {
+  if (!motorPronto()) return;
+
+  if (enviar && salaId && minhaCor !== "w") {
+    avisar("So quem criou a sala pode reiniciar a partida online.");
+    return;
+  }
+
+  if (enviar && salaId && confirmar && !window.confirm("Reiniciar a partida para os dois jogadores?")) {
+    return;
+  }
+
+  jogo.reset();
   selecionada = null;
-  historico = [];
   ultimo = null;
   render();
   status();
+  avisar(enviar && salaId ? "Partida reiniciada para os dois jogadores." : "");
 
   if (enviar) enviarEstado();
 }
 
-function cor(p) {
-  if (!p) return null;
-  return p === p.toUpperCase() ? "w" : "b";
+function casa(r, c) {
+  return String.fromCharCode(97 + c) + (8 - r);
 }
 
-function dentro(r,c) {
-  return r >= 0 && r < 8 && c >= 0 && c < 8;
+function coordenadas(square) {
+  return [8 - Number(square[1]), square.charCodeAt(0) - 97];
 }
 
-function livre(r1,c1,r2,c2) {
-  const dr = Math.sign(r2-r1);
-  const dc = Math.sign(c2-c1);
-  let r = r1 + dr;
-  let c = c1 + dc;
-
-  while (r !== r2 || c !== c2) {
-    if (board[r][c]) return false;
-    r += dr;
-    c += dc;
-  }
-
-  return true;
+function pecaEm(r, c) {
+  const linha = jogo.board()[r];
+  return linha ? linha[c] : null;
 }
 
-function valido(r1,c1,r2,c2) {
-  if (!dentro(r1,c1) || !dentro(r2,c2)) return false;
-
-  const p = board[r1][c1];
-  const alvo = board[r2][c2];
-
-  if (!p) return false;
-  if (cor(p) !== turno) return false;
-  if (alvo && cor(alvo) === turno) return false;
-
-  const tipo = p.toLowerCase();
-  const dr = r2-r1;
-  const dc = c2-c1;
-  const ar = Math.abs(dr);
-  const ac = Math.abs(dc);
-  const lado = cor(p);
-  const dir = lado === "w" ? -1 : 1;
-  const linhaInicial = lado === "w" ? 6 : 1;
-
-  if (tipo === "p") {
-    if (dc === 0 && !alvo && dr === dir) return true;
-    if (dc === 0 && !alvo && r1 === linhaInicial && dr === 2*dir && !board[r1+dir][c1]) return true;
-    if (ac === 1 && dr === dir && alvo && cor(alvo) !== lado) return true;
-    return false;
-  }
-
-  if (tipo === "r") return (dr === 0 || dc === 0) && livre(r1,c1,r2,c2);
-  if (tipo === "b") return ar === ac && livre(r1,c1,r2,c2);
-  if (tipo === "q") return ((dr === 0 || dc === 0) || ar === ac) && livre(r1,c1,r2,c2);
-  if (tipo === "n") return (ar === 2 && ac === 1) || (ar === 1 && ac === 2);
-  if (tipo === "k") return ar <= 1 && ac <= 1;
-
-  return false;
+function simboloPeca(peca) {
+  if (!peca) return "";
+  const chave = peca.color === "w" ? peca.type.toUpperCase() : peca.type;
+  return simbolos[chave] || "";
 }
 
-function legais(r,c) {
-  const out = [];
-  for (let r2=0; r2<8; r2++) {
-    for (let c2=0; c2<8; c2++) {
-      if (valido(r,c,r2,c2)) out.push([r2,c2]);
-    }
-  }
-  return out;
+function movimentosDa(square) {
+  return jogo.moves({ square, verbose: true });
 }
 
 function podeJogar() {
   if (!salaId) return true;
-  return minhaCor === turno;
+  if (!minhaCor) return false;
+  return minhaCor === jogo.turn();
 }
 
-function clicar(r,c) {
-  if (!podeJogar()) {
-    document.getElementById("status").textContent = "Não é sua vez.";
+function jogoAcabou() {
+  return jogo.game_over ? jogo.game_over() : jogo.isGameOver();
+}
+
+function emXeque() {
+  return jogo.in_check ? jogo.in_check() : jogo.isCheck();
+}
+
+function xequeMate() {
+  return jogo.in_checkmate ? jogo.in_checkmate() : jogo.isCheckmate();
+}
+
+function afogamento() {
+  return jogo.in_stalemate ? jogo.in_stalemate() : jogo.isStalemate();
+}
+
+function empate() {
+  return jogo.in_draw ? jogo.in_draw() : jogo.isDraw();
+}
+
+function reiEmXeque() {
+  if (!emXeque()) return null;
+
+  const cor = jogo.turn();
+  const tabuleiro = jogo.board();
+
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const p = tabuleiro[r][c];
+      if (p && p.type === "k" && p.color === cor) return casa(r, c);
+    }
+  }
+
+  return null;
+}
+
+function escolherPromocao() {
+  const resposta = (window.prompt("Promover para: dama, torre, bispo ou cavalo?", "dama") || "dama")
+    .trim()
+    .toLowerCase();
+
+  const mapa = {
+    dama: "q", d: "q", q: "q",
+    torre: "r", t: "r", r: "r",
+    bispo: "b", b: "b",
+    cavalo: "n", c: "n", n: "n"
+  };
+
+  return mapa[resposta] || "q";
+}
+
+function clicar(r, c) {
+  if (!motorPronto()) return;
+
+  if (jogoAcabou()) {
+    avisar("A partida terminou. Comece um novo jogo para continuar.");
     return;
   }
 
-  const p = board[r][c];
+  if (!podeJogar()) {
+    avisar("Nao e sua vez.");
+    return;
+  }
+
+  const square = casa(r, c);
+  const peca = pecaEm(r, c);
 
   if (!selecionada) {
-    if (!p) return;
-    if (cor(p) !== turno) return;
-
-    selecionada = [r,c];
+    if (!peca || peca.color !== jogo.turn()) return;
+    selecionada = square;
+    avisar("");
     render();
     return;
   }
 
-  const r1 = selecionada[0];
-  const c1 = selecionada[1];
-
-  if (r1 === r && c1 === c) {
+  if (selecionada === square) {
     selecionada = null;
     render();
     return;
   }
 
-  if (valido(r1,c1,r,c)) {
-    mover(r1,c1,r,c,true);
-  } else if (p && cor(p) === turno) {
-    selecionada = [r,c];
+  const opcoes = movimentosDa(selecionada).filter((m) => m.to === square);
+  const promocao = opcoes.some((m) => m.promotion) ? escolherPromocao() : undefined;
+  const lance = jogo.move({ from: selecionada, to: square, promotion: promocao });
+
+  if (lance) {
+    ultimo = [lance.from, lance.to];
+    selecionada = null;
+    avisar("");
+    render();
+    status();
+    enviarEstado();
+    return;
+  }
+
+  if (peca && peca.color === jogo.turn()) {
+    selecionada = square;
     render();
   }
 }
 
-function mover(r1,c1,r2,c2,enviar) {
-  const p = board[r1][c1];
-  const capturou = board[r2][c2];
-
-  historico.push({
-    board: JSON.stringify(board),
-    turno: turno,
-    texto: casa(r1,c1) + "-" + casa(r2,c2) + (capturou ? "x" : "")
-  });
-
-  board[r2][c2] = p;
-  board[r1][c1] = "";
-
-  if (p === "P" && r2 === 0) board[r2][c2] = "Q";
-  if (p === "p" && r2 === 7) board[r2][c2] = "q";
-
-  turno = turno === "w" ? "b" : "w";
-  selecionada = null;
-  ultimo = [[r1,c1],[r2,c2]];
-
-  render();
-  status();
-
-  if (enviar) enviarEstado();
-}
-
-function casa(r,c) {
-  return String.fromCharCode(97+c) + (8-r);
-}
-
 function render() {
+  if (!motorPronto()) return;
+
   const el = document.getElementById("board");
   el.innerHTML = "";
 
   let casas = [];
-  for (let r=0; r<8; r++) {
-    for (let c=0; c<8; c++) {
-      casas.push([r,c]);
-    }
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) casas.push([r, c]);
   }
 
   if (invertido) casas.reverse();
 
-  const listaLegais = selecionada ? legais(selecionada[0], selecionada[1]) : [];
+  const listaLegais = selecionada ? movimentosDa(selecionada) : [];
+  const reiMarcado = reiEmXeque();
 
-  for (const par of casas) {
-    const r = par[0];
-    const c = par[1];
-
+  for (const [r, c] of casas) {
+    const square = casa(r, c);
     const d = document.createElement("div");
-    d.className = "square " + ((r+c)%2===0 ? "light" : "dark");
+    const peca = pecaEm(r, c);
+    const legal = listaLegais.find((m) => m.to === square);
 
-    const p = board[r][c];
-    d.textContent = p ? simbolos[p] : "";
+    d.className = "square " + ((r + c) % 2 === 0 ? "light" : "dark");
+    d.textContent = simboloPeca(peca);
 
-    if (selecionada && selecionada[0] === r && selecionada[1] === c) {
-      d.classList.add("selected");
-    }
+    if (selecionada === square) d.classList.add("selected");
+    if (legal) d.classList.add(peca ? "capture" : "legal");
+    if (ultimo && (ultimo[0] === square || ultimo[1] === square)) d.classList.add("last");
+    if (reiMarcado === square) d.classList.add("check");
 
-    if (listaLegais.some(x => x[0]===r && x[1]===c)) {
-      d.classList.add("legal");
-    }
-
-    if (ultimo) {
-      const a = ultimo[0];
-      const b = ultimo[1];
-      if ((a[0]===r && a[1]===c) || (b[0]===r && b[1]===c)) {
-        d.classList.add("last");
-      }
-    }
-
-    d.onclick = () => clicar(r,c);
+    d.onclick = () => clicar(r, c);
     el.appendChild(d);
   }
 
@@ -503,35 +645,68 @@ function render() {
 }
 
 function status() {
-  document.getElementById("status").textContent =
-    turno === "w" ? "Vez das brancas" : "Vez das pretas";
+  if (!motorPronto()) return;
 
+  let texto = jogo.turn() === "w" ? "Vez das brancas" : "Vez das pretas";
+
+  if (xequeMate()) {
+    const vencedora = jogo.turn() === "w" ? "pretas" : "brancas";
+    texto = "Xeque-mate. Vitoria das " + vencedora + ".";
+  } else if (afogamento()) {
+    texto = "Empate por afogamento.";
+  } else if (empate()) {
+    texto = "Empate.";
+  } else if (emXeque()) {
+    texto += " - xeque";
+  }
+
+  document.getElementById("status").textContent = texto;
   document.getElementById("turno").textContent =
-    turno === "w" ? "Turno: brancas" : "Turno: pretas";
-
+    jogo.turn() === "w" ? "Turno: brancas" : "Turno: pretas";
   document.getElementById("voce").textContent =
-    minhaCor ? ("Você: " + (minhaCor === "w" ? "brancas" : "pretas")) : "Você: local";
-
+    minhaCor ? ("Voce: " + nomesCores[minhaCor]) : "Voce: local";
   document.getElementById("salaAtual").textContent =
     salaId ? ("Sala: " + salaId) : "Sala: nenhuma";
 }
 
 function lances() {
-  document.getElementById("moves").textContent =
-    historico.map((h,i)=> (i+1) + ". " + h.texto).join("\n") || "Nenhum lance.";
+  const historico = jogo.history({ verbose: true });
+  const linhas = [];
+
+  for (let i = 0; i < historico.length; i += 2) {
+    const numero = Math.floor(i / 2) + 1;
+    const brancas = historico[i] ? historico[i].san : "";
+    const pretas = historico[i + 1] ? " " + historico[i + 1].san : "";
+    linhas.push(numero + ". " + brancas + pretas);
+  }
+
+  document.getElementById("moves").textContent = linhas.join("\n") || "Nenhum lance.";
 }
 
 function desfazer(enviar) {
-  const ult = historico.pop();
-  if (!ult) return;
+  if (!motorPronto()) return;
 
-  board = JSON.parse(ult.board);
-  turno = ult.turno;
-  selecionada = null;
+  if (salaId) {
+    const ultimaCor = jogo.turn() === "w" ? "b" : "w";
+    if (minhaCor !== ultimaCor) {
+      avisar("So quem fez o ultimo lance pode desfazer no modo online.");
+      return;
+    }
+
+    if (!window.confirm("Desfazer o ultimo lance para os dois jogadores?")) return;
+  }
+
+  const lance = jogo.undo();
+  if (!lance) {
+    avisar("Ainda nao ha lance para desfazer.");
+    return;
+  }
+
   ultimo = null;
-
+  selecionada = null;
   render();
   status();
+  avisar("Ultimo lance desfeito.");
 
   if (enviar) enviarEstado();
 }
@@ -542,105 +717,177 @@ function girar() {
 }
 
 function gerarCodigo() {
-  return Math.random().toString(36).slice(2, 8).toUpperCase();
-}
+  const alfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = new Uint8Array(6);
 
-function criarSala() {
-  if (!firebaseOk) {
-    document.getElementById("firebaseAviso").style.display = "block";
-    alert("Antes precisa configurar o Firebase no index.html.");
-    return;
+  if (window.crypto && window.crypto.getRandomValues) {
+    window.crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
   }
 
-  salaId = gerarCodigo();
-  minhaCor = "w";
-  document.getElementById("codigoSala").value = salaId;
-
-  novoJogo(false);
-  db.ref("salas/" + salaId).set(estadoAtual());
-  ouvirSala();
-
-  alert("Sala criada. Agora copie o link e envie para sua esposa.");
+  return Array.from(bytes, (b) => alfabeto[b % alfabeto.length]).join("");
 }
 
-function entrarNaSala() {
-  if (!firebaseOk) {
-    document.getElementById("firebaseAviso").style.display = "block";
-    alert("Antes precisa configurar o Firebase no index.html.");
-    return;
+async function gerarSalaLivre() {
+  let codigo = gerarCodigo();
+  let tentativa = 0;
+
+  while (tentativa < 5) {
+    const snap = await salaRef(codigo).once("value");
+    if (!snap.exists()) return codigo;
+    codigo = gerarCodigo();
+    tentativa++;
   }
+
+  return codigo;
+}
+
+async function criarSala() {
+  if (!motorPronto()) return;
+
+  try {
+    await garantirLogin();
+    if (escutaRef) sairDaSala(false);
+
+    salaId = await gerarSalaLivre();
+    minhaCor = "w";
+    jogadores = { whiteUid: uid, blackUid: null };
+    codigoInput().value = salaId;
+    invertido = false;
+
+    novoJogo(false, false);
+    await salaRef().set(estadoAtual());
+    ouvirSala();
+    avisar("Sala criada. Copie o link e envie para o outro jogador.");
+  } catch (e) {
+    if (firebaseOk) avisar("Nao consegui criar a sala. Confira o Firebase.");
+  }
+}
+
+async function entrarNaSala(opcoes = {}) {
+  if (!motorPronto()) return;
 
   const params = new URLSearchParams(location.search);
-  const codigo = document.getElementById("codigoSala").value.trim() || params.get("sala");
+  const codigo = (opcoes.codigo || codigoInput().value.trim() || params.get("sala") || "").toUpperCase();
 
   if (!codigo) {
-    alert("Digite o código da sala ou abra o link recebido.");
+    avisar("Digite o codigo da sala ou abra um link recebido.");
     return;
   }
 
-  salaId = codigo.toUpperCase();
-  minhaCor = "b";
-  document.getElementById("codigoSala").value = salaId;
-  ouvirSala();
+  try {
+    await garantirLogin();
+    const ref = salaRef(codigo);
+    const snap = await ref.once("value");
 
-  alert("Você entrou na sala. Você joga de pretas.");
+    if (!snap.exists()) {
+      avisar("Sala nao encontrada. Confira o codigo.");
+      return;
+    }
+
+    const dados = snap.val();
+    salaId = codigo;
+    jogadores = {
+      whiteUid: dados.whiteUid || null,
+      blackUid: dados.blackUid || null
+    };
+
+    if (jogadores.whiteUid === uid) {
+      minhaCor = "w";
+      invertido = false;
+    } else if (jogadores.blackUid === uid) {
+      minhaCor = "b";
+      invertido = true;
+    } else if (!jogadores.blackUid) {
+      jogadores.blackUid = uid;
+      minhaCor = "b";
+      invertido = true;
+      await ref.update({ blackUid: uid, updatedAt: Date.now() });
+    } else {
+      salaId = null;
+      jogadores = { whiteUid: null, blackUid: null };
+      avisar("Sala cheia. Crie outra sala para jogar.");
+      status();
+      return;
+    }
+
+    codigoInput().value = salaId;
+    aplicarEstado({ ...dados, blackUid: jogadores.blackUid });
+    ouvirSala();
+    avisar(opcoes.silencioso ? "Sala aberta pelo link." : "Voce entrou na sala.");
+  } catch (e) {
+    avisar("Nao consegui entrar na sala. Confira o Firebase e as regras do banco.");
+  }
 }
 
 function ouvirSala() {
   if (!firebaseOk || !salaId) return;
 
-  if (escutando) {
-    db.ref("salas/" + salaId).off();
-  }
+  if (escutaRef) escutaRef.off();
+  escutaRef = salaRef();
 
-  escutando = true;
+  escutaRef.on("value", (snap) => {
+    if (!snap.exists()) {
+      avisar("A sala foi encerrada.");
+      sairDaSala(false);
+      return;
+    }
 
-  db.ref("salas/" + salaId).on("value", snap => {
-    const dados = snap.val();
-    if (dados) aplicarEstado(dados);
+    aplicarEstado(snap.val());
   });
 
   status();
 }
 
 function copiarLink() {
-  if (!salaId && document.getElementById("codigoSala").value.trim()) {
-    salaId = document.getElementById("codigoSala").value.trim().toUpperCase();
-  }
+  const codigo = (salaId || codigoInput().value.trim()).toUpperCase();
 
-  if (!salaId) {
-    alert("Crie uma sala primeiro.");
+  if (!codigo) {
+    avisar("Crie uma sala primeiro.");
     return;
   }
 
-  const link = location.origin + location.pathname + "?sala=" + encodeURIComponent(salaId);
+  const link = location.origin + location.pathname + "?sala=" + encodeURIComponent(codigo);
 
   if (navigator.clipboard) {
     navigator.clipboard.writeText(link)
-      .then(() => alert("Link copiado. Envie para sua esposa."))
-      .catch(() => prompt("Copie o link:", link));
+      .then(() => avisar("Link copiado."))
+      .catch(() => window.prompt("Copie o link:", link));
   } else {
-    prompt("Copie o link:", link);
+    window.prompt("Copie o link:", link);
   }
 }
 
-function sairDaSala() {
-  if (firebaseOk && salaId) {
-    db.ref("salas/" + salaId).off();
-  }
+function sairDaSala(limparCodigo = true) {
+  if (escutaRef) escutaRef.off();
 
+  escutaRef = null;
   salaId = null;
   minhaCor = null;
-  escutando = false;
+  jogadores = { whiteUid: null, blackUid: null };
+  selecionada = null;
+
+  if (limparCodigo) codigoInput().value = "";
+
+  render();
   status();
+  avisar(limparCodigo ? "Voce saiu da sala. A partida local continua na tela." : "");
 }
 
 window.onload = () => {
-  novoJogo(false);
+  if (!motorPronto()) return;
+
+  novoJogo(false, false);
 
   const sala = new URLSearchParams(location.search).get("sala");
   if (sala) {
-    document.getElementById("codigoSala").value = sala.toUpperCase();
+    codigoInput().value = sala.toUpperCase();
+    if (firebaseOk) {
+      entrarNaSala({ codigo: sala, silencioso: true });
+    } else {
+      avisar("Sala recebida pelo link. Configure o Firebase para entrar online.");
+    }
   }
 };
 </script>

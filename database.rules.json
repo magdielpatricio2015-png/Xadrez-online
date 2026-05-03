@@ -1,0 +1,11 @@
+{
+  "rules": {
+    "salas": {
+      "$sala": {
+        ".read": "auth != null",
+        ".write": "auth != null && ((!data.exists() && newData.child('whiteUid').val() === auth.uid) || (data.exists() && (data.child('whiteUid').val() === auth.uid || data.child('blackUid').val() === auth.uid || (!data.child('blackUid').exists() && newData.child('blackUid').val() === auth.uid))))",
+        ".validate": "newData.hasChildren(['fen', 'pgn', 'whiteUid', 'updatedAt']) && newData.child('fen').isString() && newData.child('pgn').isString() && newData.child('whiteUid').isString() && newData.child('updatedAt').isNumber()"
+      }
+    }
+  }
+}
