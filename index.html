@@ -1,171 +1,635 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Xadrez Online</title>
-<script src="https://cdn.jsdelivr.net/npm/chess.js@1.0.0-beta.8/dist/chess.min.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Xadrez Online com Amigos</title>
+
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
 <style>
-body{margin:0;background:#0f172a;color:#f8fafc;font-family:Arial;padding:12px}
-main{max-width:720px;margin:auto}
-h1{margin:8px 0;font-size:30px}
-.card{background:#111827;border:1px solid #334155;border-radius:18px;padding:12px;margin:12px 0}
-button,input{width:100%;padding:12px;margin-top:8px;border-radius:12px;border:1px solid #334155;font-size:16px}
-button{background:#16a34a;color:white;font-weight:bold;border:0}
-button.sec{background:#1f2937}
-button.red{background:#dc2626}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-#board{width:min(94vw,620px);aspect-ratio:1/1;margin:12px auto;display:grid;grid-template-columns:repeat(8,1fr);border:3px solid #334155;border-radius:14px;overflow:hidden}
-.sq{display:flex;align-items:center;justify-content:center;font-size:clamp(30px,10vw,58px);user-select:none;position:relative}
-.light{background:#e2e8f0}.dark{background:#64748b}.sel{outline:4px solid #facc15;outline-offset:-4px}
-.legal:after{content:"";position:absolute;width:28%;height:28%;border-radius:50%;background:rgba(34,197,94,.55)}
-.cap:after{content:"";position:absolute;width:75%;height:75%;border-radius:50%;border:5px solid rgba(239,68,68,.55)}
-.pill{display:inline-block;border:1px solid #334155;border-radius:999px;padding:5px 10px;color:#94a3b8;margin:3px}
-#moves{white-space:pre-wrap;font-family:monospace;color:#d1d5db;max-height:160px;overflow:auto}
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f4f7fb;
+  color: #111827;
+  font-family: Arial, Helvetica, sans-serif;
+  padding: 12px;
+}
+
+.app {
+  max-width: 760px;
+  margin: auto;
+}
+
+h1 {
+  margin: 10px 0 4px;
+  font-size: 30px;
+}
+
+.sub {
+  color: #64748b;
+  margin-bottom: 12px;
+}
+
+.card {
+  background: white;
+  border: 1px solid #dbe3ef;
+  border-radius: 18px;
+  padding: 14px;
+  margin: 12px 0;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.status {
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+button, input {
+  width: 100%;
+  padding: 13px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  font-size: 16px;
+}
+
+button {
+  border: none;
+  background: #2563eb;
+  color: white;
+  font-weight: bold;
+}
+
+button.green {
+  background: #16a34a;
+}
+
+button.gray {
+  background: #475569;
+}
+
+button.red {
+  background: #dc2626;
+}
+
+#board {
+  width: min(94vw, 620px);
+  aspect-ratio: 1 / 1;
+  margin: 16px auto;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  border: 4px solid #334155;
+  border-radius: 14px;
+  overflow: hidden;
+  background: white;
+}
+
+.square {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(30px, 9vw, 58px);
+  user-select: none;
+  cursor: pointer;
+  position: relative;
+}
+
+.white {
+  background: #f8fafc;
+}
+
+.black {
+  background: #94a3b8;
+}
+
+.selected {
+  outline: 4px solid #facc15;
+  outline-offset: -4px;
+}
+
+.last {
+  box-shadow: inset 0 0 0 4px rgba(37, 99, 235, 0.45);
+}
+
+.dot::after {
+  content: "";
+  width: 24%;
+  height: 24%;
+  border-radius: 50%;
+  background: rgba(22, 163, 74, 0.55);
+  position: absolute;
+}
+
+.pill {
+  display: inline-block;
+  padding: 6px 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 999px;
+  margin: 3px;
+  font-size: 14px;
+}
+
+.note {
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.moves {
+  max-height: 160px;
+  overflow: auto;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 10px;
+  font-family: monospace;
+  white-space: pre-wrap;
+}
 </style>
 </head>
+
 <body>
-<main>
-<h1>♟️ Xadrez Online</h1>
-<div class="card">
-<div id="status">Iniciando...</div>
-<span id="turno" class="pill">Turno: brancas</span>
-<span id="cor" class="pill">Modo: local</span>
-<span id="online" class="pill">Offline</span>
-</div>
+<div class="app">
+  <h1>♟️ Xadrez Online</h1>
+  <div class="sub">Jogue no mesmo celular ou online com um amigo pelo link/código da sala.</div>
 
-<div class="card">
-<div class="grid">
-<button onclick="novoJogo()">Novo jogo</button>
-<button class="sec" onclick="girar()">Girar</button>
-</div>
-<div class="grid">
-<button class="sec" onclick="desfazer()">Desfazer</button>
-<button class="red" onclick="desistir()">Desistir</button>
-</div>
-</div>
+  <div class="card">
+    <div id="status" class="status">Vez das brancas</div>
+    <div style="margin-top:8px">
+      <span id="turno" class="pill">Turno: brancas</span>
+      <span id="modo" class="pill">Modo: local</span>
+      <span id="connStatus" class="pill">Offline</span>
+    </div>
+  </div>
 
-<div id="board"></div>
+  <div class="card">
+    <div class="row">
+      <button class="green" onclick="novoJogo(true)">Novo jogo</button>
+      <button class="gray" onclick="girarTabuleiro()">Girar tabuleiro</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="gray" onclick="desfazer(true)">Desfazer</button>
+      <button class="red" onclick="limparSala()">Sair online</button>
+    </div>
+  </div>
 
-<div class="card">
-<h3>🌐 Jogar online</h3>
-<p>Um jogador cria a sala. O outro entra com o código.</p>
-<div class="grid">
-<button onclick="criarSala()">Criar sala</button>
-<button class="sec" onclick="entrarSala()">Entrar</button>
-</div>
-<input id="room" placeholder="Código da sala">
-<button class="sec" onclick="copiar()">Copiar código</button>
-</div>
+  <div id="board"></div>
 
-<div class="card">
-<h3>Lances</h3>
-<div id="moves">Nenhum lance.</div>
+  <div class="card">
+    <h2>🌐 Jogar online</h2>
+    <p class="note">
+      Um jogador clica em <b>Criar sala</b>. Depois envia o código ou o link para o amigo.
+      O outro jogador abre o link e clica em <b>Entrar na sala</b>.
+    </p>
+
+    <div class="row">
+      <button onclick="criarSala()">Criar sala</button>
+      <button class="green" onclick="entrarSala()">Entrar na sala</button>
+    </div>
+
+    <input id="codigoSala" placeholder="Código da sala" style="margin-top:10px" />
+    <button class="gray" onclick="copiarLink()" style="margin-top:10px">Copiar link da sala</button>
+
+    <p class="note">
+      Se não conectar, ambos devem usar Chrome e internet normal. Algumas redes bloqueiam conexão P2P.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>📜 Lances</h2>
+    <div id="moves" class="moves">Nenhum lance ainda.</div>
+  </div>
 </div>
-</main>
 
 <script>
-const chess = new Chess();
-const pecas = {wp:"♙",wr:"♖",wn:"♘",wb:"♗",wq:"♕",wk:"♔",bp:"♟",br:"♜",bn:"♞",bb:"♝",bq:"♛",bk:"♚"};
-let sel=null, legais=[], inv=false, peer=null, conn=null, modo=false, minha=null, fim=false;
+const pecasUnicode = {
+  "r": "♜", "n": "♞", "b": "♝", "q": "♛", "k": "♚", "p": "♟",
+  "R": "♖", "N": "♘", "B": "♗", "Q": "♕", "K": "♔", "P": "♙"
+};
 
-function sqRC(s){return {r:8-Number(s[1]),c:s.charCodeAt(0)-97}}
-function rcSq(r,c){return String.fromCharCode(97+c)+(8-r)}
-function ordem(){let a=[];for(let r=0;r<8;r++)for(let c=0;c<8;c++)a.push(rcSq(r,c));return inv?a.reverse():a}
+let board = [];
+let turno = "w";
+let selecionada = null;
+let invertido = false;
+let historico = [];
+let ultimoLance = null;
 
-function render(){
- const b=document.getElementById("board"); b.innerHTML="";
- ordem().forEach(s=>{
-  const {r,c}=sqRC(s); const d=document.createElement("div");
-  d.className="sq "+(((r+c)%2)?"dark":"light"); d.dataset.s=s;
-  if(sel===s)d.classList.add("sel");
-  const lg=legais.find(m=>m.to===s); if(lg)d.classList.add(chess.get(s)?"cap":"legal");
-  const p=chess.get(s); if(p)d.textContent=pecas[p.color+p.type];
-  d.onclick=()=>clickCasa(s); b.appendChild(d);
- });
- status(); lances();
-}
+let peer = null;
+let conexao = null;
+let online = false;
+let minhaCor = null;
 
-function pode(){return !modo || chess.turn()===minha}
-function clickCasa(s){
- if(chess.isGameOver()||fim)return;
- if(!pode()){msg("Não é sua vez.");return}
- const p=chess.get(s);
- if(!sel){
-  if(!p||p.color!==chess.turn())return;
-  if(modo&&p.color!==minha)return;
-  sel=s; legais=chess.moves({square:s,verbose:true}); render(); return;
- }
- if(sel===s){sel=null; legais=[]; render(); return}
- const lance=legais.find(m=>m.to===s);
- if(!lance){
-  if(p&&p.color===chess.turn()){sel=s; legais=chess.moves({square:s,verbose:true}); render()}
-  return;
- }
- mover(sel,s,true);
+function tabuleiroInicial() {
+  return [
+    ["r","n","b","q","k","b","n","r"],
+    ["p","p","p","p","p","p","p","p"],
+    ["","","","","","","",""],
+    ["","","","","","","",""],
+    ["","","","","","","",""],
+    ["","","","","","","",""],
+    ["P","P","P","P","P","P","P","P"],
+    ["R","N","B","Q","K","B","N","R"]
+  ];
 }
 
-function mover(from,to,enviar){
- let promotion="q";
- const p=chess.get(from);
- if(p&&p.type==="p"&&((p.color==="w"&&to[1]==="8")||(p.color==="b"&&to[1]==="1"))){
-  promotion=(prompt("Promover para q, r, b, n","q")||"q").toLowerCase();
-  if(!["q","r","b","n"].includes(promotion))promotion="q";
- }
- const ok=chess.move({from,to,promotion}); if(!ok)return;
- sel=null; legais=[]; render();
- if(modo&&conn&&enviar)conn.send({type:"move",from,to,promotion});
+function novoJogo(enviar) {
+  board = tabuleiroInicial();
+  turno = "w";
+  selecionada = null;
+  historico = [];
+  ultimoLance = null;
+  renderizar();
+  atualizarStatus();
+
+  if (enviar && online && conexao) {
+    enviarDados({tipo: "novo"});
+  }
 }
 
-function status(){
- let t="Vez das "+(chess.turn()==="w"?"brancas":"pretas");
- if(chess.isCheckmate())t="Xeque-mate! Vitória das "+(chess.turn()==="w"?"pretas":"brancas");
- else if(chess.isDraw())t="Empate";
- else if(chess.isCheck())t="Xeque! "+t;
- document.getElementById("status").textContent=t;
- document.getElementById("turno").textContent="Turno: "+(chess.turn()==="w"?"brancas":"pretas");
- document.getElementById("cor").textContent=modo?("Você: "+(minha==="w"?"brancas":"pretas")):"Modo: local";
- document.getElementById("online").textContent=(modo&&conn&&conn.open)?"Online":"Offline";
+function corDaPeca(p) {
+  if (!p) return null;
+  return p === p.toUpperCase() ? "w" : "b";
 }
 
-function msg(t){document.getElementById("status").textContent=t}
-function lances(){const h=chess.history();let txt="";for(let i=0;i<h.length;i+=2)txt+=(i/2+1)+". "+(h[i]||"")+" "+(h[i+1]||"")+"\n";document.getElementById("moves").textContent=txt||"Nenhum lance."}
-function novoJogo(enviar=true){chess.reset();fim=false;sel=null;legais=[];render();if(modo&&conn&&enviar)conn.send({type:"new"})}
-function desfazer(enviar=true){chess.undo();render();if(modo&&conn&&enviar)conn.send({type:"undo"})}
-function girar(){inv=!inv;render()}
-function desistir(){fim=true;msg("Desistência.");if(modo&&conn)conn.send({type:"resign"})}
+function dentro(r, c) {
+  return r >= 0 && r < 8 && c >= 0 && c < 8;
+}
 
-function criarSala(){
- if(peer)peer.destroy();
- peer=new Peer();
- peer.on("open",id=>{document.getElementById("room").value=id;modo=true;minha="w";msg("Sala criada. Envie o código.");render()});
- peer.on("connection",c=>{conn=c;configConn();conn.on("open",()=>{conn.send({type:"sync",fen:chess.fen()});msg("Amigo conectado. Você joga de brancas.");render()})});
- peer.on("error",e=>alert("Erro: "+e));
+function caminhoLivre(r1, c1, r2, c2) {
+  const dr = Math.sign(r2 - r1);
+  const dc = Math.sign(c2 - c1);
+  let r = r1 + dr;
+  let c = c1 + dc;
+
+  while (r !== r2 || c !== c2) {
+    if (board[r][c]) return false;
+    r += dr;
+    c += dc;
+  }
+
+  return true;
 }
-function entrarSala(){
- const id=document.getElementById("room").value.trim(); if(!id)return alert("Digite o código.");
- if(peer)peer.destroy();
- peer=new Peer();
- peer.on("open",()=>{conn=peer.connect(id);modo=true;minha="b";configConn()});
- peer.on("error",e=>alert("Erro: "+e));
+
+function movimentoValido(r1, c1, r2, c2) {
+  if (!dentro(r1,c1) || !dentro(r2,c2)) return false;
+  const p = board[r1][c1];
+  const alvo = board[r2][c2];
+
+  if (!p) return false;
+  if (corDaPeca(p) !== turno) return false;
+  if (alvo && corDaPeca(alvo) === turno) return false;
+
+  const tipo = p.toLowerCase();
+  const dr = r2 - r1;
+  const dc = c2 - c1;
+  const absR = Math.abs(dr);
+  const absC = Math.abs(dc);
+  const cor = corDaPeca(p);
+  const dir = cor === "w" ? -1 : 1;
+  const linhaInicial = cor === "w" ? 6 : 1;
+
+  if (tipo === "p") {
+    if (dc === 0 && !alvo && dr === dir) return true;
+    if (dc === 0 && !alvo && r1 === linhaInicial && dr === 2 * dir && !board[r1 + dir][c1]) return true;
+    if (absC === 1 && dr === dir && alvo && corDaPeca(alvo) !== cor) return true;
+    return false;
+  }
+
+  if (tipo === "r") {
+    return (dr === 0 || dc === 0) && caminhoLivre(r1,c1,r2,c2);
+  }
+
+  if (tipo === "b") {
+    return absR === absC && caminhoLivre(r1,c1,r2,c2);
+  }
+
+  if (tipo === "q") {
+    return ((dr === 0 || dc === 0) || absR === absC) && caminhoLivre(r1,c1,r2,c2);
+  }
+
+  if (tipo === "n") {
+    return (absR === 2 && absC === 1) || (absR === 1 && absC === 2);
+  }
+
+  if (tipo === "k") {
+    return absR <= 1 && absC <= 1;
+  }
+
+  return false;
 }
-function configConn(){
- conn.on("open",()=>{msg("Conectado.");render()});
- conn.on("data",d=>{
-  if(d.type==="move"){chess.move({from:d.from,to:d.to,promotion:d.promotion||"q"});render()}
-  if(d.type==="new")novoJogo(false);
-  if(d.type==="undo")desfazer(false);
-  if(d.type==="sync"){chess.load(d.fen);render()}
-  if(d.type==="resign"){fim=true;msg("O adversário desistiu.")}
- });
- conn.on("close",()=>{msg("Conexão encerrada.");render()});
+
+function movimentosPossiveis(r, c) {
+  const lista = [];
+  for (let r2 = 0; r2 < 8; r2++) {
+    for (let c2 = 0; c2 < 8; c2++) {
+      if (movimentoValido(r,c,r2,c2)) {
+        lista.push([r2,c2]);
+      }
+    }
+  }
+  return lista;
 }
-async function copiar(){
- const code=document.getElementById("room").value.trim(); if(!code)return alert("Crie uma sala.");
- try{await navigator.clipboard.writeText(code);alert("Código copiado.");}catch{alert(code)}
+
+function podeJogar() {
+  if (!online) return true;
+  return minhaCor === turno;
 }
-render();
+
+function clicarCasa(r, c) {
+  if (!podeJogar()) {
+    document.getElementById("status").textContent = "Não é sua vez.";
+    return;
+  }
+
+  const p = board[r][c];
+
+  if (!selecionada) {
+    if (!p) return;
+    if (corDaPeca(p) !== turno) return;
+    selecionada = [r, c];
+    renderizar();
+    return;
+  }
+
+  const [r1, c1] = selecionada;
+
+  if (r1 === r && c1 === c) {
+    selecionada = null;
+    renderizar();
+    return;
+  }
+
+  if (movimentoValido(r1, c1, r, c)) {
+    mover(r1, c1, r, c, true);
+  } else {
+    if (p && corDaPeca(p) === turno) {
+      selecionada = [r, c];
+      renderizar();
+    }
+  }
+}
+
+function mover(r1, c1, r2, c2, enviar) {
+  const p = board[r1][c1];
+  const alvo = board[r2][c2];
+
+  historico.push({
+    board: JSON.stringify(board),
+    turno,
+    texto: nomeCasa(r1,c1) + "-" + nomeCasa(r2,c2) + (alvo ? "x" : "")
+  });
+
+  board[r2][c2] = p;
+  board[r1][c1] = "";
+
+  if (p === "P" && r2 === 0) board[r2][c2] = "Q";
+  if (p === "p" && r2 === 7) board[r2][c2] = "q";
+
+  ultimoLance = [[r1,c1], [r2,c2]];
+  turno = turno === "w" ? "b" : "w";
+  selecionada = null;
+
+  renderizar();
+  atualizarStatus();
+
+  if (enviar && online && conexao) {
+    enviarDados({tipo: "mover", r1, c1, r2, c2});
+  }
+}
+
+function nomeCasa(r, c) {
+  return String.fromCharCode(97 + c) + (8 - r);
+}
+
+function desfazer(enviar) {
+  const ult = historico.pop();
+  if (!ult) return;
+
+  board = JSON.parse(ult.board);
+  turno = ult.turno;
+  selecionada = null;
+  ultimoLance = null;
+  renderizar();
+  atualizarStatus();
+
+  if (enviar && online && conexao) {
+    enviarDados({tipo: "desfazer"});
+  }
+}
+
+function renderizar() {
+  const el = document.getElementById("board");
+  el.innerHTML = "";
+
+  let casas = [];
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      casas.push([r,c]);
+    }
+  }
+
+  if (invertido) casas.reverse();
+
+  const legais = selecionada ? movimentosPossiveis(selecionada[0], selecionada[1]) : [];
+
+  for (const [r,c] of casas) {
+    const div = document.createElement("div");
+    div.className = "square " + ((r + c) % 2 === 0 ? "white" : "black");
+
+    const p = board[r][c];
+    div.textContent = p ? pecasUnicode[p] : "";
+
+    if (selecionada && selecionada[0] === r && selecionada[1] === c) {
+      div.classList.add("selected");
+    }
+
+    if (legais.some(x => x[0] === r && x[1] === c)) {
+      div.classList.add("dot");
+    }
+
+    if (ultimoLance) {
+      const a = ultimoLance[0];
+      const b = ultimoLance[1];
+      if ((a[0] === r && a[1] === c) || (b[0] === r && b[1] === c)) {
+        div.classList.add("last");
+      }
+    }
+
+    div.onclick = () => clicarCasa(r,c);
+    el.appendChild(div);
+  }
+
+  atualizarLances();
+}
+
+function atualizarStatus() {
+  document.getElementById("status").textContent =
+    turno === "w" ? "Vez das brancas" : "Vez das pretas";
+
+  document.getElementById("turno").textContent =
+    turno === "w" ? "Turno: brancas" : "Turno: pretas";
+
+  document.getElementById("modo").textContent =
+    online ? ("Você: " + (minhaCor === "w" ? "brancas" : "pretas")) : "Modo: local";
+
+  document.getElementById("connStatus").textContent =
+    online && conexao && conexao.open ? "Online" : "Offline";
+}
+
+function atualizarLances() {
+  const txt = historico.map((h, i) => (i + 1) + ". " + h.texto).join("\n");
+  document.getElementById("moves").textContent = txt || "Nenhum lance ainda.";
+}
+
+function girarTabuleiro() {
+  invertido = !invertido;
+  renderizar();
+}
+
+function enviarDados(dados) {
+  try {
+    if (conexao && conexao.open) conexao.send(dados);
+  } catch (e) {
+    alert("Erro ao enviar jogada.");
+  }
+}
+
+function criarSala() {
+  if (peer) peer.destroy();
+
+  peer = new Peer();
+
+  peer.on("open", id => {
+    online = true;
+    minhaCor = "w";
+    document.getElementById("codigoSala").value = id;
+    atualizarStatus();
+    alert("Sala criada. Envie o link ou código para seu amigo.");
+  });
+
+  peer.on("connection", conn => {
+    conexao = conn;
+    configurarConexao();
+
+    conexao.on("open", () => {
+      enviarDados({tipo: "sync", board, turno, historico});
+      atualizarStatus();
+      alert("Amigo conectado!");
+    });
+  });
+
+  peer.on("error", err => {
+    alert("Erro ao criar sala: " + err);
+  });
+}
+
+function entrarSala() {
+  const params = new URLSearchParams(location.search);
+  const idLink = params.get("sala");
+  const idCampo = document.getElementById("codigoSala").value.trim();
+  const id = idCampo || idLink;
+
+  if (!id) {
+    alert("Digite ou abra um link com código de sala.");
+    return;
+  }
+
+  if (peer) peer.destroy();
+
+  peer = new Peer();
+
+  peer.on("open", () => {
+    online = true;
+    minhaCor = "b";
+    conexao = peer.connect(id);
+    configurarConexao();
+    atualizarStatus();
+  });
+
+  peer.on("error", err => {
+    alert("Erro ao entrar: " + err);
+  });
+}
+
+function configurarConexao() {
+  conexao.on("open", () => {
+    atualizarStatus();
+  });
+
+  conexao.on("data", dados => {
+    if (dados.tipo === "mover") {
+      mover(dados.r1, dados.c1, dados.r2, dados.c2, false);
+    }
+
+    if (dados.tipo === "novo") {
+      novoJogo(false);
+    }
+
+    if (dados.tipo === "desfazer") {
+      desfazer(false);
+    }
+
+    if (dados.tipo === "sync") {
+      board = dados.board;
+      turno = dados.turno;
+      historico = dados.historico || [];
+      renderizar();
+      atualizarStatus();
+    }
+  });
+
+  conexao.on("close", () => {
+    online = false;
+    atualizarStatus();
+    alert("Conexão encerrada.");
+  });
+}
+
+function copiarLink() {
+  const id = document.getElementById("codigoSala").value.trim();
+
+  if (!id) {
+    alert("Crie uma sala primeiro.");
+    return;
+  }
+
+  const link = location.origin + location.pathname + "?sala=" + encodeURIComponent(id);
+
+  navigator.clipboard.writeText(link)
+    .then(() => alert("Link copiado. Envie para seu amigo."))
+    .catch(() => prompt("Copie o link:", link));
+}
+
+function limparSala() {
+  online = false;
+  minhaCor = null;
+  if (conexao) conexao.close();
+  if (peer) peer.destroy();
+  conexao = null;
+  peer = null;
+  atualizarStatus();
+}
+
+window.onload = () => {
+  novoJogo(false);
+
+  const params = new URLSearchParams(location.search);
+  const sala = params.get("sala");
+
+  if (sala) {
+    document.getElementById("codigoSala").value = sala;
+  }
+};
 </script>
 </body>
 </html>
