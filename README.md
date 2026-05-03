@@ -1,2 +1,12 @@
-# Xadrez-online
-Jogo de xadrez online para celular e navegador. Permite jogar localmente ou com amigos usando código de sala em tempo real.
+# Xadrez Online
+
+Jogo de xadrez em um único arquivo HTML.
+
+## Como usar
+
+Suba o `index.html` no GitHub Pages.
+
+## Online
+
+- Um jogador cria sala.
+- O outro entra com o código.

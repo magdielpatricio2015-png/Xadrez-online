@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Xadrez Online</title>
+<script src="https://cdn.jsdelivr.net/npm/chess.js@1.0.0-beta.8/dist/chess.min.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+body{margin:0;background:#0f172a;color:#f8fafc;font-family:Arial;padding:12px}
+main{max-width:720px;margin:auto}
+h1{margin:8px 0;font-size:30px}
+.card{background:#111827;border:1px solid #334155;border-radius:18px;padding:12px;margin:12px 0}
+button,input{width:100%;padding:12px;margin-top:8px;border-radius:12px;border:1px solid #334155;font-size:16px}
+button{background:#16a34a;color:white;font-weight:bold;border:0}
+button.sec{background:#1f2937}
+button.red{background:#dc2626}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#board{width:min(94vw,620px);aspect-ratio:1/1;margin:12px auto;display:grid;grid-template-columns:repeat(8,1fr);border:3px solid #334155;border-radius:14px;overflow:hidden}
+.sq{display:flex;align-items:center;justify-content:center;font-size:clamp(30px,10vw,58px);user-select:none;position:relative}
+.light{background:#e2e8f0}.dark{background:#64748b}.sel{outline:4px solid #facc15;outline-offset:-4px}
+.legal:after{content:"";position:absolute;width:28%;height:28%;border-radius:50%;background:rgba(34,197,94,.55)}
+.cap:after{content:"";position:absolute;width:75%;height:75%;border-radius:50%;border:5px solid rgba(239,68,68,.55)}
+.pill{display:inline-block;border:1px solid #334155;border-radius:999px;padding:5px 10px;color:#94a3b8;margin:3px}
+#moves{white-space:pre-wrap;font-family:monospace;color:#d1d5db;max-height:160px;overflow:auto}
+</style>
+</head>
+<body>
+<main>
+<h1>♟️ Xadrez Online</h1>
+<div class="card">
+<div id="status">Iniciando...</div>
+<span id="turno" class="pill">Turno: brancas</span>
+<span id="cor" class="pill">Modo: local</span>
+<span id="online" class="pill">Offline</span>
+</div>
+
+<div class="card">
+<div class="grid">
+<button onclick="novoJogo()">Novo jogo</button>
+<button class="sec" onclick="girar()">Girar</button>
+</div>
+<div class="grid">
+<button class="sec" onclick="desfazer()">Desfazer</button>
+<button class="red" onclick="desistir()">Desistir</button>
+</div>
+</div>
+
+<div id="board"></div>
+
+<div class="card">
+<h3>🌐 Jogar online</h3>
+<p>Um jogador cria a sala. O outro entra com o código.</p>
+<div class="grid">
+<button onclick="criarSala()">Criar sala</button>
+<button class="sec" onclick="entrarSala()">Entrar</button>
+</div>
+<input id="room" placeholder="Código da sala">
+<button class="sec" onclick="copiar()">Copiar código</button>
+</div>
+
+<div class="card">
+<h3>Lances</h3>
+<div id="moves">Nenhum lance.</div>
+</div>
+</main>
+
+<script>
+const chess = new Chess();
+const pecas = {wp:"♙",wr:"♖",wn:"♘",wb:"♗",wq:"♕",wk:"♔",bp:"♟",br:"♜",bn:"♞",bb:"♝",bq:"♛",bk:"♚"};
+let sel=null, legais=[], inv=false, peer=null, conn=null, modo=false, minha=null, fim=false;
+
+function sqRC(s){return {r:8-Number(s[1]),c:s.charCodeAt(0)-97}}
+function rcSq(r,c){return String.fromCharCode(97+c)+(8-r)}
+function ordem(){let a=[];for(let r=0;r<8;r++)for(let c=0;c<8;c++)a.push(rcSq(r,c));return inv?a.reverse():a}
+
+function render(){
+ const b=document.getElementById("board"); b.innerHTML="";
+ ordem().forEach(s=>{
+  const {r,c}=sqRC(s); const d=document.createElement("div");
+  d.className="sq "+(((r+c)%2)?"dark":"light"); d.dataset.s=s;
+  if(sel===s)d.classList.add("sel");
+  const lg=legais.find(m=>m.to===s); if(lg)d.classList.add(chess.get(s)?"cap":"legal");
+  const p=chess.get(s); if(p)d.textContent=pecas[p.color+p.type];
+  d.onclick=()=>clickCasa(s); b.appendChild(d);
+ });
+ status(); lances();
+}
+
+function pode(){return !modo || chess.turn()===minha}
+function clickCasa(s){
+ if(chess.isGameOver()||fim)return;
+ if(!pode()){msg("Não é sua vez.");return}
+ const p=chess.get(s);
+ if(!sel){
+  if(!p||p.color!==chess.turn())return;
+  if(modo&&p.color!==minha)return;
+  sel=s; legais=chess.moves({square:s,verbose:true}); render(); return;
+ }
+ if(sel===s){sel=null; legais=[]; render(); return}
+ const lance=legais.find(m=>m.to===s);
+ if(!lance){
+  if(p&&p.color===chess.turn()){sel=s; legais=chess.moves({square:s,verbose:true}); render()}
+  return;
+ }
+ mover(sel,s,true);
+}
+
+function mover(from,to,enviar){
+ let promotion="q";
+ const p=chess.get(from);
+ if(p&&p.type==="p"&&((p.color==="w"&&to[1]==="8")||(p.color==="b"&&to[1]==="1"))){
+  promotion=(prompt("Promover para q, r, b, n","q")||"q").toLowerCase();
+  if(!["q","r","b","n"].includes(promotion))promotion="q";
+ }
+ const ok=chess.move({from,to,promotion}); if(!ok)return;
+ sel=null; legais=[]; render();
+ if(modo&&conn&&enviar)conn.send({type:"move",from,to,promotion});
+}
+
+function status(){
+ let t="Vez das "+(chess.turn()==="w"?"brancas":"pretas");
+ if(chess.isCheckmate())t="Xeque-mate! Vitória das "+(chess.turn()==="w"?"pretas":"brancas");
+ else if(chess.isDraw())t="Empate";
+ else if(chess.isCheck())t="Xeque! "+t;
+ document.getElementById("status").textContent=t;
+ document.getElementById("turno").textContent="Turno: "+(chess.turn()==="w"?"brancas":"pretas");
+ document.getElementById("cor").textContent=modo?("Você: "+(minha==="w"?"brancas":"pretas")):"Modo: local";
+ document.getElementById("online").textContent=(modo&&conn&&conn.open)?"Online":"Offline";
+}
+
+function msg(t){document.getElementById("status").textContent=t}
+function lances(){const h=chess.history();let txt="";for(let i=0;i<h.length;i+=2)txt+=(i/2+1)+". "+(h[i]||"")+" "+(h[i+1]||"")+"\n";document.getElementById("moves").textContent=txt||"Nenhum lance."}
+function novoJogo(enviar=true){chess.reset();fim=false;sel=null;legais=[];render();if(modo&&conn&&enviar)conn.send({type:"new"})}
+function desfazer(enviar=true){chess.undo();render();if(modo&&conn&&enviar)conn.send({type:"undo"})}
+function girar(){inv=!inv;render()}
+function desistir(){fim=true;msg("Desistência.");if(modo&&conn)conn.send({type:"resign"})}
+
+function criarSala(){
+ if(peer)peer.destroy();
+ peer=new Peer();
+ peer.on("open",id=>{document.getElementById("room").value=id;modo=true;minha="w";msg("Sala criada. Envie o código.");render()});
+ peer.on("connection",c=>{conn=c;configConn();conn.on("open",()=>{conn.send({type:"sync",fen:chess.fen()});msg("Amigo conectado. Você joga de brancas.");render()})});
+ peer.on("error",e=>alert("Erro: "+e));
+}
+function entrarSala(){
+ const id=document.getElementById("room").value.trim(); if(!id)return alert("Digite o código.");
+ if(peer)peer.destroy();
+ peer=new Peer();
+ peer.on("open",()=>{conn=peer.connect(id);modo=true;minha="b";configConn()});
+ peer.on("error",e=>alert("Erro: "+e));
+}
+function configConn(){
+ conn.on("open",()=>{msg("Conectado.");render()});
+ conn.on("data",d=>{
+  if(d.type==="move"){chess.move({from:d.from,to:d.to,promotion:d.promotion||"q"});render()}
+  if(d.type==="new")novoJogo(false);
+  if(d.type==="undo")desfazer(false);
+  if(d.type==="sync"){chess.load(d.fen);render()}
+  if(d.type==="resign"){fim=true;msg("O adversário desistiu.")}
+ });
+ conn.on("close",()=>{msg("Conexão encerrada.");render()});
+}
+async function copiar(){
+ const code=document.getElementById("room").value.trim(); if(!code)return alert("Crie uma sala.");
+ try{await navigator.clipboard.writeText(code);alert("Código copiado.");}catch{alert(code)}
+}
+render();
+</script>
+</body>
+</html>
