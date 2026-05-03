@@ -1,4 +1,4 @@
-# Xadrez Online
+# xadrez-online
 
 Jogo de xadrez em um único arquivo HTML.
 
