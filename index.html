@@ -6,7 +6,6 @@
 <title>Xadrez do Casal</title>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.12.1/chess.min.js"></script>
 
@@ -268,7 +267,7 @@ input {
 
   <div id="firebaseAviso" class="card warn" style="display:none">
     <b>Firebase ainda nao configurado.</b><br>
-    Cole sua configuracao no bloco <code>firebaseConfig</code> e ative o login anonimo.
+    Confira a configuracao do Firebase e as regras do Realtime Database.
   </div>
 
   <div id="firebaseOkAviso" class="card ok" style="display:none">
@@ -294,22 +293,14 @@ const firebaseConfig = {
 
 let db = null;
 let firebaseOk = false;
-let authReady = Promise.resolve(null);
 let uid = null;
 
 try {
-  if (firebaseConfig.apiKey !== "COLE_AQUI") {
-    firebase.initializeApp(firebaseConfig);
-    db = firebase.database();
-    firebaseOk = true;
-    document.getElementById("firebaseOkAviso").style.display = "block";
-    authReady = firebase.auth().signInAnonymously().then((cred) => {
-      uid = cred.user.uid;
-      return uid;
-    });
-  } else {
-    document.getElementById("firebaseAviso").style.display = "block";
-  }
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+  firebaseOk = true;
+  document.getElementById("firebaseOkAviso").style.display = "block";
+  document.getElementById("firebaseAviso").style.display = "none";
 } catch (e) {
   document.getElementById("firebaseAviso").style.display = "block";
 }
@@ -349,19 +340,14 @@ async function garantirLogin() {
     throw new Error("Firebase nao configurado.");
   }
 
-  try {
-    uid = uid || await authReady;
-    if (!uid && firebase.auth().currentUser) uid = firebase.auth().currentUser.uid;
-    if (!uid) {
-      const cred = await firebase.auth().signInAnonymously();
-      uid = cred.user.uid;
-    }
-    return uid;
-  } catch (e) {
-    document.getElementById("firebaseAviso").style.display = "block";
-    avisar("Ative o login anonimo no Firebase para usar salas online.");
-    throw e;
+  uid = localStorage.getItem("xadrezUid");
+
+  if (!uid) {
+    uid = "jogador-" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem("xadrezUid", uid);
   }
+
+  return uid;
 }
 
 function salaRef(id = salaId) {
@@ -453,10 +439,6 @@ function novoJogo(enviar, confirmar = true) {
 
 function casa(r, c) {
   return String.fromCharCode(97 + c) + (8 - r);
-}
-
-function coordenadas(square) {
-  return [8 - Number(square[1]), square.charCodeAt(0) - 97];
 }
 
 function pecaEm(r, c) {
@@ -721,7 +703,9 @@ async function criarSala() {
   if (!motorPronto()) return;
 
   try {
+    codigoInput().value = "";
     await garantirLogin();
+
     if (escutaRef) sairDaSala(false);
 
     salaId = await gerarSalaLivre();
@@ -735,7 +719,7 @@ async function criarSala() {
     ouvirSala();
     avisar("Sala criada. Copie o link e envie para o outro jogador.");
   } catch (e) {
-    if (firebaseOk) avisar("Nao consegui criar a sala. Confira o Firebase.");
+    avisar("Nao consegui criar a sala. Confira as regras do Firebase.");
   }
 }
 
