@@ -5,12 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Xadrez do Casal</title>
 
-<!-- Firebase compat: simples para manter o projeto em um unico HTML. -->
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
-
-<!-- Motor de regras do xadrez: lances legais, xeque, mate, roque, en passant e empates. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.12.1/chess.min.js"></script>
 
 <style>
@@ -118,6 +115,7 @@ button {
 }
 
 button:hover { filter: brightness(0.96); }
+
 button:disabled {
   background: #94a3b8;
   cursor: not-allowed;
@@ -284,38 +282,14 @@ input {
 </div>
 
 <script>
-/*
-====================================================
-COLE SUA CONFIGURACAO DO FIREBASE AQUI
-====================================================
-
-No Firebase:
-1. Crie um app Web.
-2. Copie o firebaseConfig.
-3. Ative Authentication > Sign-in method > Anonymous.
-4. Crie um Realtime Database.
-5. Publique as regras do arquivo database.rules.json.
-
-Substitua o bloco abaixo:
-
 const firebaseConfig = {
-  apiKey: "SUA_CHAVE",
-  authDomain: "SEU-PROJETO.firebaseapp.com",
-  databaseURL: "https://SEU-PROJETO-default-rtdb.firebaseio.com",
-  projectId: "SEU-PROJETO",
-  storageBucket: "SEU-PROJETO.appspot.com",
-  messagingSenderId: "000000",
-  appId: "1:000000:web:000000"
-};
-*/
-const firebaseConfig = {
-  apiKey: "COLE_AQUI",
-  authDomain: "COLE_AQUI",
-  databaseURL: "COLE_AQUI",
-  projectId: "COLE_AQUI",
-  storageBucket: "COLE_AQUI",
-  messagingSenderId: "COLE_AQUI",
-  appId: "COLE_AQUI"
+  apiKey: "AIzaSyBVF1-4hTa_xw05sN3m-dTTGUTPQy5_qTM",
+  authDomain: "xadrez-online-70c33.firebaseapp.com",
+  databaseURL: "https://xadrez-online-70c33-default-rtdb.firebaseio.com",
+  projectId: "xadrez-online-70c33",
+  storageBucket: "xadrez-online-70c33.firebasestorage.app",
+  messagingSenderId: "198278980794",
+  appId: "1:198278980794:web:02cc9c5db1233c88d78e83"
 };
 
 let db = null;
